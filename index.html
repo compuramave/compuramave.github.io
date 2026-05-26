@@ -205,7 +205,7 @@
       <div class="nav-links" id="nav-links">
         <a href="#inicio" class="active">Inicio</a>
         <a href="#categorias">Categorías</a>
-        <a href="#pc-builder">Arma tu PC</a>
+
         <a href="#cat-refurbished" class="nav-ofertas" onclick="trackEvent('click_ofertas')">🔥 Ofertas</a>
         <a href="#cashea">Cashea</a>
         <a href="#nosotros">Nosotros</a>
@@ -379,11 +379,7 @@
                 <span class="category-title">Laptops</span>
                 <p>HP, Dell, Asus</p>
               </div>
-              <div class="category-card" onclick="window.location.hash='pc-builder'">
-                <div class="category-icon" style="background: var(--gradient-brand); color: white;">🛠️</div>
-                <span class="category-title">Arma tu PC</span>
-                <p>Configurador Pro</p>
-              </div>
+
               <div class="category-card" onclick="scrollToSection('componentes')">
                 <div class="category-icon">🔌</div>
                 <span class="category-title">Componentes</span>
@@ -802,131 +798,7 @@
         </div>
       </section>
     </div>
-<!-- ===== VIEW: PC BUILDER (SPA) ===== -->
-    <div id="view-builder" style="display: none; padding-top: 100px; padding-bottom: 100px; min-height: 80vh; background: var(--gray-100);">
-      <div class="container">
-        <div class="builder-nav-header" style="margin-bottom: 40px;">
-          <button class="btn btn-outline" onclick="window.location.hash = ''">
-            ← Volver al Catálogo Principal
-          </button>
-        </div>
-        
-        <div class="section-header reveal">
-          <div class="section-tag builder-tag">🛠️ Configurador Pro</div>
-          <h2>Arma tu PC <span class="gradient-text">Componente por Componente</span></h2>
-          <p>Selecciona los componentes disponibles y nosotros nos encargamos del ensamble experto.</p>
-        </div>
 
-        <div class="builder-grid">
-          <!-- Selection -->
-          <div class="builder-selection">
-            <div class="builder-step" data-step="prebuilt">
-              <div class="step-header">
-                <span class="step-num">★</span>
-                <h3>PCs ya Listas (Entrega Inmediata)</h3>
-              </div>
-              <div class="step-options" id="builder-prebuilt-options">
-                <p class="loading-msg">Cargando PCs...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="cpu">
-              <div class="step-header">
-                <span class="step-num">1</span>
-                <h3>Procesador (CPU)</h3>
-              </div>
-              <div class="step-options" id="builder-cpu-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="motherboard">
-              <div class="step-header">
-                <span class="step-num">2</span>
-                <h3>Tarjeta Madre</h3>
-              </div>
-              <div class="step-options" id="builder-motherboard-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="ram">
-              <div class="step-header">
-                <span class="step-num">3</span>
-                <h3>Memoria RAM</h3>
-              </div>
-              <div class="step-options" id="builder-ram-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="gpu">
-              <div class="step-header">
-                <span class="step-num">4</span>
-                <h3>Tarjeta de Video (GPU)</h3>
-              </div>
-              <div class="step-options" id="builder-gpu-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="storage">
-              <div class="step-header">
-                <span class="step-num">5</span>
-                <h3>Almacenamiento (SSD)</h3>
-              </div>
-              <div class="step-options" id="builder-storage-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="psu">
-              <div class="step-header">
-                <span class="step-num">6</span>
-                <h3>Fuente de Poder</h3>
-              </div>
-              <div class="step-options" id="builder-psu-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-
-            <div class="builder-step" data-step="case">
-              <div class="step-header">
-                <span class="step-num">7</span>
-                <h3>Chasis / Case</h3>
-              </div>
-              <div class="step-options" id="builder-case-options">
-                <p class="loading-msg">Cargando componentes...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Summary -->
-          <div class="builder-summary-container">
-            <div class="builder-summary-card">
-              <h3>Resumen de Ensamblado</h3>
-              <div class="summary-items" id="builder-summary-items">
-                <p class="empty-msg">No has seleccionado componentes aún.</p>
-              </div>
-              <div class="summary-total">
-                <div class="total-row">
-                  <span>Total estimado:</span>
-                  <span id="builder-total-price">$0.00</span>
-                </div>
-                <div class="cashea-builder">
-                  <img src="media/cashea logo.jpg" alt="Cashea">
-                  <span id="builder-cashea-quote">Inicial desde $0.00</span>
-                </div>
-              </div>
-              <button class="btn btn-primary btn-block" id="builder-checkout" onclick="checkoutBuilder()" style="width: 100%; justify-content: center;">
-                📩 Consultar Presupuesto por WhatsApp
-              </button>
-              <p class="builder-note">* El precio no incluye costo de ensamble (consultar según complejidad).</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div><!-- End #view-builder -->
     <!-- ===== TRUSTPILOT REVIEWS SECTION ===== -->
     <section class="trustpilot-reviews reveal" id="opiniones">
       <div class="container">

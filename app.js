@@ -535,8 +535,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup lazy rendering for remaining sections
   setupLazyRender();
 
-  // Inicializar PC Builder
-  setupPCBuilder();
 
   // Verificar si hay un producto compartido en la URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -561,25 +559,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 function handleRouting() {
   const hash = window.location.hash || '#inicio';
   const mainView = document.getElementById('view-main');
-  const builderView = document.getElementById('view-builder');
   const categoryView = document.getElementById('view-category');
   const searchView = document.getElementById('view-search');
 
-  if (!mainView || !builderView || !categoryView || !searchView) return;
+  if (!mainView || !categoryView || !searchView) return;
 
   // Hide all views initially
   mainView.style.display = 'none';
-  builderView.style.display = 'none';
   categoryView.style.display = 'none';
   searchView.style.display = 'none';
 
   window.scrollTo(0, 0);
 
-  if (hash === '#pc-builder') {
-    builderView.style.display = 'block';
-    setupPCBuilder();
-    trackSectionView('pc-builder');
-  } else if (hash === '#search') {
+  if (hash === '#search') {
     searchView.style.display = 'block';
     trackSectionView('search');
   } else if (hash.startsWith('#cat-')) {
@@ -617,7 +609,6 @@ function trackSectionView(sectionId) {
     'refurbished': 'Ofertas Refurbished',
     'laptops': 'Catálogo de Laptops',
     'componentes': 'Hardware y Componentes',
-    'pc-builder': 'Armado de PC Pro',
     'pc': 'PCs de Escritorio',
     'impresoras': 'Impresoras y Multifuncionales',
     'routers': 'Routers y Conectividad',
@@ -1463,171 +1454,7 @@ function scrollToSection(sectionId) {
   });
 }
 
-// ===== PC BUILDER LOGIC =====
-let builderSelections = {
-  prebuilt: null,
-  cpu: null,
-  motherboard: null,
-  ram: null,
-  gpu: null,
-  storage: null,
-  psu: null,
-  case: null
-};
 
-function setupPCBuilder() {
-  const steps = ['prebuilt', 'cpu', 'motherboard', 'ram', 'gpu', 'storage', 'psu', 'case'];
-  
-  steps.forEach(step => {
-    const container = document.getElementById(`builder-${step}-options`);
-    if (!container) return;
-
-    let options;
-    if (step === 'prebuilt') {
-      options = products.filter(p => p.category === 'pc' && p.stock > 0);
-    } else {
-      options = products.filter(p => p.subCategory === step && p.stock > 0);
-    }
-    
-    if (options.length === 0) {
-      container.innerHTML = `<p class="empty-msg">No hay ${step === 'prebuilt' ? 'PCs pre-armadas' : step} disponibles en este momento.</p>`;
-    } else {
-      container.innerHTML = options.map(p => `
-        <div class="option-card" onclick="selectBuilderItem('${step}', '${p.id}')" data-id="${p.id}">
-          <img src="${p.image}" alt="${p.name}" onerror="this.onerror=null; this.src='${p.localImage}';">
-          <div class="option-info">
-            <h4>${p.name}</h4>
-            <div class="option-price">$${p.price.toFixed(2)}</div>
-          </div>
-        </div>
-      `).join('');
-    }
-  });
-
-  updateBuilderSummary();
-}
-
-function selectBuilderItem(step, productId) {
-  const p = products.find(pr => pr.id === productId);
-  if (!p) return;
-
-  // Toggle selection
-  if (builderSelections[step] === p.id) {
-    builderSelections[step] = null;
-  } else {
-    // If selecting a prebuilt, clear everything else
-    if (step === 'prebuilt') {
-      for (let key in builderSelections) builderSelections[key] = null;
-    } else {
-      // If selecting a component, clear prebuilt
-      builderSelections.prebuilt = null;
-    }
-    builderSelections[step] = p.id;
-  }
-
-  // Update UI classes (all sections)
-  const steps = ['prebuilt', 'cpu', 'motherboard', 'ram', 'gpu', 'storage', 'psu', 'case'];
-  steps.forEach(s => {
-    const stepContainer = document.getElementById(`builder-${s}-options`);
-    if (stepContainer) {
-      stepContainer.querySelectorAll('.option-card').forEach(card => {
-        card.classList.toggle('selected', card.dataset.id === builderSelections[s]);
-      });
-    }
-  });
-
-  updateBuilderSummary();
-  
-  // Track: Select Component
-  trackEvent('select_component', {
-    step: step,
-    item_id: p.id,
-    item_name: p.name
-  });
-}
-
-function updateBuilderSummary() {
-  const summaryList = document.getElementById('builder-summary-items');
-  const totalPriceEl = document.getElementById('builder-total-price');
-  const casheaEl = document.getElementById('builder-cashea-quote');
-  
-  let total = 0;
-  let selectedItems = [];
-
-  for (const step in builderSelections) {
-    const id = builderSelections[step];
-    if (id) {
-      const p = products.find(pr => pr.id === id);
-      if (p) {
-        total += p.price;
-        selectedItems.push(p);
-      }
-    }
-  }
-
-  if (selectedItems.length === 0) {
-    summaryList.innerHTML = '<p class="empty-msg">No has seleccionado componentes aún.</p>';
-  } else {
-    summaryList.innerHTML = selectedItems.map(p => `
-      <div class="summary-item">
-        <span class="item-name">${p.name}</span>
-        <span class="item-price">$${p.price.toFixed(2)}</span>
-      </div>
-    `).join('');
-  }
-
-  totalPriceEl.textContent = `$${total.toFixed(2)}`;
-  
-  // Cashea calculation for builder (40% down payment)
-  if (total > 0) {
-    const initial = (total * 0.4).toFixed(2);
-    casheaEl.textContent = `Inicial desde $${initial} (con Cashea)`;
-  } else {
-    casheaEl.textContent = 'Inicial desde $0.00';
-  }
-}
-
-
-function checkoutBuilder() {
-  let selectedItems = [];
-  let total = 0;
-
-  for (const step in builderSelections) {
-    const id = builderSelections[step];
-    if (id) {
-      const p = products.find(pr => pr.id === id);
-      if (p) {
-        selectedItems.push(p);
-        total += p.price;
-      }
-    }
-  }
-
-  if (selectedItems.length === 0) {
-    showToast('⚠️ Selecciona al menos un componente');
-    return;
-  }
-
-  let message = builderSelections.prebuilt ? '📦 *Consulta de PC Pre-armada*\n\n' : '🛠️ *Presupuesto de PC Personalizada*\n\n';
-  selectedItems.forEach(p => {
-    message += `• ${p.name} — $${p.price.toFixed(2)}\n`;
-  });
-  message += `\n💰 *Total Estimado: $${total.toFixed(2)} USD*`;
-  message += '\n\n¡Hola! Me gustaría consultar disponibilidad para este equipo. 🙂';
-  message += '\n\n⭐ *¿Ya nos conoces?* Déjanos tu reseña aquí: https://es.trustpilot.com/review/compuramave.github.io';
-
-  const encoded = encodeURIComponent(message);
-  window.open(`https://wa.me/584245339698?text=${encoded}`, '_blank');
-  
-  // Open Success Modal for Trustpilot capture
-  setTimeout(openSuccessModal, 1000);
-
-  // Track
-  trackEvent('builder_checkout', {
-    value: total,
-    item_count: selectedItems.length
-  });
-}
 
 // ===== RENDER CATEGORY PAGE =====
 function renderCategoryPage(category) {
