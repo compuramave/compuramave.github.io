@@ -471,6 +471,19 @@ async function loadProductsFromSheet() {
       const localImagePath = getLocalImage(titleLower, category);
       const enhancements = getProductEnhancements(titleLower, row[2], category, title);
       
+      // Override para R5 430
+      let isSpecialPromo = false;
+      let originalPrice = null;
+      if (titleLower.includes('r5 430')) {
+        title = title.replace(/2gb/gi, '').trim();
+        if (!title.toLowerCase().includes('1gb')) {
+          title = title + ' 1GB';
+        }
+        originalPrice = 30.00; // Precio anterior simulado
+        priceVal = 23.20; // Precio especial por la promo de 1GB
+        isSpecialPromo = true;
+      }
+      
       return {
         id: row[0] || 'GEN-' + Math.floor(Math.random() * 10000),
         name: title,
@@ -480,9 +493,11 @@ async function loadProductsFromSheet() {
         image: (row[5] && row[5].trim().startsWith('http') && !row[5].includes('imgur.com/a/')) ? row[5].trim() : localImagePath,
         localImage: localImagePath,
         price: priceVal,
+        originalPrice: originalPrice,
+        isSpecialPromo: isSpecialPromo,
         category: category,
         subCategory: subCategory,
-        badge: isRefurbished ? 'sale' : null,
+        badge: isSpecialPromo ? 'sale' : (isRefurbished ? 'sale' : null),
         specs: enhancements.specs
       };
     }).filter(p => p.price > 0); // No mostrar items sin precio configurado
@@ -1206,9 +1221,13 @@ function createProductCard(p) {
   }
 
   // Simulate old price for refurbished / sale items
-  const hasDiscount = (p.category === 'refurbished' || p.badge === 'sale');
+  const hasDiscount = (p.category === 'refurbished' || p.badge === 'sale' || p.isSpecialPromo);
   const discountMultiplier = 1.2 + ((idHash % 3) * 0.1); // 20% to 40%
-  const oldPrice = hasDiscount ? (p.price * discountMultiplier).toFixed(2) : null;
+  let oldPrice = hasDiscount ? (p.price * discountMultiplier).toFixed(2) : null;
+
+  if (p.isSpecialPromo && p.originalPrice) {
+    oldPrice = p.originalPrice.toFixed(2);
+  }
 
   return `
     <div class="product-card reveal visible${outOfStock ? ' out-of-stock' : ''}" data-id="${p.id}">
