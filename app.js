@@ -78,9 +78,9 @@ async function loadProductsFromSheet() {
       // 11: Digital
 
       const rawPrice = row[7] || '0';
-      const priceVal = parseFloat(rawPrice.replace(',', '.')) || 0;
+      let priceVal = parseFloat(rawPrice.replace(',', '.')) || 0;
 
-      const title = row[1] || '';
+      let title = row[1] || '';
       const titleLower = title.toLowerCase();
 
       let category = 'laptops';
