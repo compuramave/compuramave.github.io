@@ -1,8 +1,12 @@
 // ===== GOOGLE SHEETS URL =====
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1rH-8h09wBuQekIoptTEzXkJb0IXuOfmnAj6hRs6u8P8/export?format=csv';
 
+// ===== COMMENTS API URL (Google Apps Script) =====
+const COMMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbyt9WQb1vLaMpzAvih1xVhS04AQ4Vwvf_2dw-xs39iQMqGMwcu3GcJuN4ft0ThH1pyg/exec';
+
 // ===== PRODUCT DATA =====
 let products = [];
+window.globalReviews = {};
 
 // Helper para parsear CSV básico (maneja comillas y comas internas)
 function parseCSV(text) {
@@ -54,6 +58,23 @@ function parseCSV(text) {
 
 // ===== FETCH PRODUCTS FROM SHEET =====
 async function loadProductsFromSheet() {
+  try {
+    const cached = sessionStorage.getItem('compurama_products');
+    if (cached) {
+      products = JSON.parse(cached);
+      // Fetch in background to silently update cache
+      fetchAndParseProducts().catch(console.error);
+      return true;
+    }
+    return await fetchAndParseProducts();
+  } catch (error) {
+    console.error("Error al cargar productos desde el Google Sheet", error);
+    showToast("❌ No se pudo cargar el inventario.");
+    return false;
+  }
+}
+
+async function fetchAndParseProducts() {
   try {
     const response = await fetch(SHEET_CSV_URL);
     const csvText = await response.text();
@@ -502,10 +523,10 @@ async function loadProductsFromSheet() {
       };
     }).filter(p => p.price > 0); // No mostrar items sin precio configurado
 
+    sessionStorage.setItem('compurama_products', JSON.stringify(products));
     return true;
   } catch (error) {
-    console.error("Error al cargar productos desde el Google Sheet", error);
-    showToast("❌ No se pudo cargar el inventario.");
+    console.error("Error al parsear productos", error);
     return false;
   }
 }
@@ -1002,11 +1023,38 @@ function openModal(productId) {
             🔗
           </button>
         </div>
+
+        <!-- Reviews Section -->
+        <div class="product-reviews-section">
+          <h3>Opiniones del Producto</h3>
+          <div id="reviews-list-${p.id}" class="reviews-list">
+            <p style="color:var(--gray-500); font-size: 0.9rem;">Cargando opiniones...</p>
+          </div>
+          <div class="review-form">
+            <h4>Deja tu opinión</h4>
+            <form onsubmit="submitReview(event, '${p.id}')">
+              <input type="text" id="review-name" placeholder="Tu nombre o alias (Anónimo)" maxlength="30">
+              <div class="star-rating-input">
+                <input type="radio" id="star5" name="rating" value="5" required /><label for="star5" title="5 estrellas">★</label>
+                <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 estrellas">★</label>
+                <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 estrellas">★</label>
+                <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 estrellas">★</label>
+                <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 estrella">★</label>
+              </div>
+              <textarea id="review-text" placeholder="¿Qué te pareció este producto? (Opcional)" rows="3" maxlength="300"></textarea>
+              <button type="submit" class="btn-submit-review" id="btn-submit-review">Enviar Opinión</button>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
   `;
 
   overlay.classList.add('open');
+
+  // Load reviews from API
+  fetchComments(p.id);
 
   // Track: View Item
   trackEvent('view_item', {
@@ -1195,18 +1243,24 @@ function performSearch(q) {
 function createProductCard(p) {
   const outOfStock = p.stock <= 0;
   
-  // Simulated Ratings Logic (Realistic range)
+  // Delete fake ratings logic
   const idHash = p.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + Math.floor(p.price);
-  const ratingVal = 4.4 + ((idHash % 6) * 0.1);
-  const rating = ratingVal.toFixed(1);
-  const reviews = 12 + (idHash % 180);
   
-  // Dynamic Stars based on rating
-  const fullStars = Math.floor(ratingVal);
-  const halfStar = (ratingVal % 1) >= 0.5 ? 1 : 0;
-  const starsHtml = '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(5 - fullStars - halfStar);
+  const productReviewsData = window.globalReviews && window.globalReviews[p.id] ? window.globalReviews[p.id] : null;
+  let starsHtml = '';
+  let ratingText = '';
+  
+  if (productReviewsData && productReviewsData.count > 0) {
+    const ratingVal = productReviewsData.average;
+    const fullStars = Math.floor(ratingVal);
+    const halfStar = (ratingVal % 1) >= 0.5 ? 1 : 0;
+    starsHtml = '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(5 - fullStars - halfStar);
+    ratingText = `${ratingVal.toFixed(1)}/5 (${productReviewsData.count} opiniones)`;
+  } else {
+    starsHtml = '<span style="color:var(--gray-300)">★★★★★</span>';
+    ratingText = 'Sé el primero en opinar';
+  }
 
-  
   // Decide badge text dynamically for "sale" to make it more aggressive sometimes
   let badgeHtml = '';
   if (outOfStock) {
@@ -1247,7 +1301,7 @@ function createProductCard(p) {
         
         <div class="product-rating">
           <span class="stars">${starsHtml}</span>
-          <span class="rating-text">${rating}/5 (${reviews} opiniones)</span>
+          <span class="rating-text">${ratingText}</span>
         </div>
         
         <div class="product-specs">
@@ -1562,5 +1616,119 @@ function handleTrustpilotSubmit(event) {
     event.target.reset();
   } else {
     showToast('❌ Error al conectar con Trustpilot.');
+  }
+}
+
+// ===== PRODUCT REVIEWS LOGIC =====
+async function fetchComments(productId) {
+  const listEl = document.getElementById(`reviews-list-${productId}`);
+  if (!listEl) return;
+
+  if (!COMMENTS_API_URL) {
+    listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">El sistema de opiniones aún no está configurado.</p>';
+    return;
+  }
+
+  try {
+    const response = await fetch(`${COMMENTS_API_URL}?action=getReviews&productId=${productId}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      renderReviews(productId, data.reviews);
+      
+      // Actualizar el caché global y el UI si es necesario
+      if (data.reviews.length > 0) {
+        const sum = data.reviews.reduce((acc, r) => acc + parseInt(r.rating), 0);
+        window.globalReviews[productId] = {
+          count: data.reviews.length,
+          average: sum / data.reviews.length
+        };
+      }
+    } else {
+      throw new Error("No success in response");
+    }
+  } catch (err) {
+    console.error("Error fetching reviews", err);
+    listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">No hay opiniones aún. ¡Sé el primero!</p>';
+  }
+}
+
+function renderReviews(productId, reviews) {
+  const listEl = document.getElementById(`reviews-list-${productId}`);
+  if (!listEl) return;
+
+  if (!reviews || reviews.length === 0) {
+    listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">No hay opiniones aún. ¡Sé el primero!</p>';
+    return;
+  }
+
+  listEl.innerHTML = reviews.map(r => {
+    const stars = '★'.repeat(parseInt(r.rating)) + '☆'.repeat(5 - parseInt(r.rating));
+    return `
+      <div class="review-item">
+        <div class="review-header">
+          <span class="review-author">${r.name || 'Anónimo'}</span>
+          <span class="review-stars">${stars}</span>
+        </div>
+        ${r.comment ? `<p class="review-text">${r.comment}</p>` : ''}
+        <span class="review-date">${r.date || ''}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+async function submitReview(event, productId) {
+  event.preventDefault();
+  
+  if (!COMMENTS_API_URL) {
+    showToast('❌ El sistema de opiniones aún no está configurado.');
+    return;
+  }
+
+  const nameEl = document.getElementById('review-name');
+  const textEl = document.getElementById('review-text');
+  const btnEl = document.getElementById('btn-submit-review');
+  const ratingEl = document.querySelector('input[name="rating"]:checked');
+
+  if (!ratingEl) {
+    showToast('⚠️ Por favor selecciona una puntuación.');
+    return;
+  }
+
+  const payload = {
+    action: 'addReview',
+    productId: productId,
+    name: nameEl.value.trim() || 'Anónimo',
+    rating: ratingEl.value,
+    comment: textEl.value.trim(),
+    date: new Date().toLocaleDateString('es-VE')
+  };
+
+  btnEl.disabled = true;
+  btnEl.textContent = 'Enviando...';
+
+  try {
+    const response = await fetch(COMMENTS_API_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      }
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showToast('✅ ¡Gracias por tu opinión!');
+      event.target.reset();
+      fetchComments(productId); // Reload comments
+    } else {
+      throw new Error(data.message || 'Error desconocido');
+    }
+  } catch (err) {
+    console.error("Error submitting review", err);
+    showToast('❌ Ocurrió un error al enviar tu opinión.');
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = 'Enviar Opinión';
   }
 }
