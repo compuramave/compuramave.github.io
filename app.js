@@ -1338,6 +1338,28 @@ function setupScrollReveal() {
   }, { threshold: 0.1 });
 
   $$('.reveal:not(.visible)').forEach(el => observer.observe(el));
+
+  if (!window.reviewsObserver) {
+    window.reviewsObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const productId = entry.target.dataset.id;
+          if (!window.globalReviewsFetched) window.globalReviewsFetched = {};
+          if (!window.globalReviewsFetched[productId]) {
+            window.globalReviewsFetched[productId] = true;
+            fetchComments(productId);
+          }
+          window.reviewsObserver.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '200px' });
+  }
+  $$('.product-card').forEach(el => {
+    const id = el.dataset.id;
+    if (!window.globalReviewsFetched || !window.globalReviewsFetched[id]) {
+      window.reviewsObserver.observe(el);
+    }
+  });
 }
 
 // ===== FEED PRINCIPAL =====
@@ -1621,11 +1643,11 @@ function handleTrustpilotSubmit(event) {
 
 // ===== PRODUCT REVIEWS LOGIC =====
 async function fetchComments(productId) {
-  const listEl = document.getElementById(`reviews-list-${productId}`);
-  if (!listEl) return;
-
   if (!COMMENTS_API_URL) {
-    listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">El sistema de opiniones aún no está configurado.</p>';
+    const listEl = document.getElementById(`reviews-list-${productId}`);
+    if (listEl) {
+      listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">El sistema de opiniones aún no está configurado.</p>';
+    }
     return;
   }
 
@@ -1643,14 +1665,47 @@ async function fetchComments(productId) {
           count: data.reviews.length,
           average: sum / data.reviews.length
         };
+      } else {
+        window.globalReviews[productId] = { count: 0, average: 0 };
       }
+      
+      updateProductCardsRating(productId);
     } else {
       throw new Error("No success in response");
     }
   } catch (err) {
     console.error("Error fetching reviews", err);
-    listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">No hay opiniones aún. ¡Sé el primero!</p>';
+    const listEl = document.getElementById(`reviews-list-${productId}`);
+    if (listEl) {
+      listEl.innerHTML = '<p style="color:var(--gray-500); font-size: 0.9rem;">No hay opiniones aún. ¡Sé el primero!</p>';
+    }
   }
+}
+
+function updateProductCardsRating(productId) {
+  const cards = document.querySelectorAll(`.product-card[data-id="${productId}"]`);
+  cards.forEach(card => {
+    const ratingDiv = card.querySelector('.product-rating');
+    if (ratingDiv) {
+      const data = window.globalReviews[productId];
+      if (data && data.count > 0) {
+        const ratingVal = data.average;
+        const fullStars = Math.floor(ratingVal);
+        const halfStar = (ratingVal % 1) >= 0.5 ? 1 : 0;
+        const starsHtml = '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(5 - fullStars - halfStar);
+        const ratingText = `${ratingVal.toFixed(1)}/5 (${data.count} opiniones)`;
+        ratingDiv.innerHTML = `
+          <span class="stars">${starsHtml}</span>
+          <span class="rating-text">${ratingText}</span>
+        `;
+      } else {
+        ratingDiv.innerHTML = `
+          <span class="stars"><span style="color:var(--gray-300)">★★★★★</span></span>
+          <span class="rating-text">Sé el primero en opinar</span>
+        `;
+      }
+    }
+  });
 }
 
 function renderReviews(productId, reviews) {
