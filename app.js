@@ -533,10 +533,19 @@ async function fetchAndParseProducts() {
 
 // ===== TRACKING HELPER =====
 function trackEvent(name, params = {}) {
+  // Tradicional gtag (si existe)
   if (typeof gtag === 'function') {
     gtag('event', name, params);
-    console.log(`[GA4] Tracked: ${name}`, params);
   }
+  
+  // Google Tag Manager (dataLayer)
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    'event': name,
+    ...params
+  });
+  
+  console.log(`[Tracked] ${name}`, params);
 }
 
 // ===== CART STATE =====
